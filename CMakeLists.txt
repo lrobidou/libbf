@@ -4,7 +4,7 @@ project(libbf CXX)
 
 include(CTest)
 
-cmake_minimum_required(VERSION 2.6 FATAL_ERROR)
+cmake_minimum_required(VERSION 2.8.12 FATAL_ERROR)
 
 set(CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
 
@@ -29,11 +29,9 @@ if (APPLE AND NOT DEFINED CMAKE_MACOSX_RPATH)
   set(CMAKE_MACOSX_RPATH true)
 endif()
 
-set(EXECUTABLE_OUTPUT_PATH ${CMAKE_CURRENT_BINARY_DIR}/bin
-  CACHE PATH "Single directory for all executables")
+set(EXECUTABLE_OUTPUT_PATH ${CMAKE_CURRENT_BINARY_DIR}/bin)
 
-set (LIBRARY_OUTPUT_PATH ${CMAKE_CURRENT_BINARY_DIR}/lib
-  CACHE PATH "Single directory for all libraries")
+set (LIBRARY_OUTPUT_PATH ${CMAKE_CURRENT_BINARY_DIR}/lib)
 
 # -- Dependencies -------------------------------------------------------------
 
@@ -71,14 +69,8 @@ endif ()
 include_directories(${CMAKE_SOURCE_DIR})
 
 set(libbf_sources
-  src/bitvector.cpp
-  src/counter_vector.cpp
   src/hash.cpp
-  src/bloom_filter/a2.cpp
   src/bloom_filter/basic.cpp
-  src/bloom_filter/bitwise.cpp
-  src/bloom_filter/counting.cpp
-  src/bloom_filter/stable.cpp
 )
 
 add_library(libbf_static STATIC ${libbf_sources})
