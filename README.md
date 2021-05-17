@@ -1,13 +1,9 @@
-**libbf** is a C++11 library which implements [various Bloom
-filters][blog-post], including:
+**libbf** is a C++11 library which implements a basic bloom filter, including:
 
-- Basic
-- Counting
-- Spectral MI
-- Spectral RM
-- Bitwise
-- A^2
-- Stable
+This repository is a modified version of libbf, which originally includes various filters, but did not allowed for a serialization of the filters.
+
+This repository only contains a basic bloom filter, but expose a new function, 'basic_bloom_filter::save(std::string filename)', which allows you to save the filter. A new constructor, 'basic_bloom_filter::basic_bloom_filter(hasher h, std::string filename)', allows you to load the filter from your disk.
+
 
 [blog-post]: http://matthias.vallentin.net/blog/2011/06/a-garden-variety-of-bloom-filters/
 
@@ -42,7 +38,7 @@ Requirements
 ============
 
 - A C++11 compiler (GCC >= 4.7 or Clang >= 3.2)
-- CMake (>= 2.8)
+- CMake (>= 2.8.12)
 
 Installation
 ============
@@ -52,18 +48,7 @@ script honors the `CXX` environment variable to select a specific C++compiler.
 For example, the following steps compile libbf with Clang and install it under
 `PREFIX`:
 
-    CXX=clang++ ./configure --prefix=PREFIX
-    make
-    make test
-    make install
-
-Documentation
-=============
-
-The most recent version of the Doxygen API documentation exists at
-<http://mavam.github.io/libbf/api>. Alternatively, you can build the
-documentation locally via `make doc` and then browse to
-`doc/gh-pages/api/index.html`.
+    ./build.sh
 
 Usage
 =====
