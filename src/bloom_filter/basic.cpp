@@ -2,6 +2,28 @@
 
 #include <cassert>
 #include <cmath>
+#include <fstream>
+#include <iostream>
+
+namespace hidden_bf {
+std::vector<bool> loadBoolVectorFromDisk(std::string filename) {
+
+  std::ifstream fin(filename, std::ios::out | std::ofstream::binary);
+
+  std::vector<bool> x;
+  std::vector<bool>::size_type n;
+  fin.read((char*)&n, sizeof(std::vector<bool>::size_type));
+  x.resize(n);
+  for (std::vector<bool>::size_type i = 0; i < n;) {
+    unsigned char aggr;
+    fin.read((char*)&aggr, sizeof(unsigned char));
+    for (unsigned char mask = 1; mask > 0 && i < n; ++i, mask <<= 1)
+      x.at(i) = aggr & mask;
+  }
+  return x;
+}
+
+} // namespace hidden_bf
 
 namespace bf {
 
@@ -26,12 +48,17 @@ basic_bloom_filter::basic_bloom_filter(double fp, size_t capacity, size_t seed,
   auto optimal_k = k(required_cells, capacity);
   if (partition_)
     required_cells += optimal_k - required_cells % optimal_k;
-  bits_.resize(required_cells);
+  bits_.resize(required_cells, false);
   hasher_ = make_hasher(optimal_k, seed, double_hashing);
 }
 
-basic_bloom_filter::basic_bloom_filter(hasher h, bitvector b)
+basic_bloom_filter::basic_bloom_filter(hasher h, std::vector<bool> b)
     : hasher_(std::move(h)), bits_(std::move(b)) {
+}
+
+basic_bloom_filter::basic_bloom_filter(hasher h, std::string filename)
+    : hasher_(std::move(h)),
+      bits_(hidden_bf::loadBoolVectorFromDisk(filename)) {
 }
 
 basic_bloom_filter::basic_bloom_filter(basic_bloom_filter&& other)
@@ -42,12 +69,15 @@ void basic_bloom_filter::add(object const& o) {
   auto digests = hasher_(o);
   if (partition_) {
     assert(bits_.size() % digests.size() == 0);
+
     auto parts = bits_.size() / digests.size();
-    for (size_t i = 0; i < digests.size(); ++i)
-      bits_.set(i * parts + (digests[i] % parts));
+    for (size_t i = 0; i < digests.size(); ++i) {
+      bits_[i * parts + (digests[i] % parts)] = true;
+    }
+
   } else {
     for (auto d : digests)
-      bits_.set(d % bits_.size());
+      bits_[d % bits_.size()] = true;
   }
 }
 
@@ -56,9 +86,11 @@ size_t basic_bloom_filter::lookup(object const& o) const {
   if (partition_) {
     assert(bits_.size() % digests.size() == 0);
     auto parts = bits_.size() / digests.size();
-    for (size_t i = 0; i < digests.size(); ++i)
+    for (size_t i = 0; i < digests.size(); ++i) {
       if (!bits_[i * parts + (digests[i] % parts)])
         return 0;
+    }
+
   } else {
     for (auto d : digests)
       if (!bits_[d % bits_.size()])
@@ -68,26 +100,32 @@ size_t basic_bloom_filter::lookup(object const& o) const {
   return 1;
 }
 
-void basic_bloom_filter::clear() {
-  bits_.reset();
-}
-
-void basic_bloom_filter::remove(object const& o) {
-  for (auto d : hasher_(o))
-    bits_.reset(d % bits_.size());
-}
-
 void basic_bloom_filter::swap(basic_bloom_filter& other) {
   using std::swap;
   swap(hasher_, other.hasher_);
   swap(bits_, other.bits_);
 }
 
-bitvector const& basic_bloom_filter::storage() const {
+std::vector<bool> const& basic_bloom_filter::storage() const {
   return bits_;
 }
 hasher const& basic_bloom_filter::hasher_function() const {
   return hasher_;
+}
+
+void basic_bloom_filter::save(std::string filename) {
+  std::ofstream fout(filename, std::ios::out | std::ofstream::binary);
+  std::vector<bool>::size_type n = bits_.size();
+  fout.write((const char*)&n, sizeof(std::vector<bool>::size_type));
+  for (std::vector<bool>::size_type i = 0; i < n;) {
+    unsigned char aggr = 0;
+    for (unsigned char mask = 1; mask > 0 && i < n; ++i, mask <<= 1)
+      if (bits_.at(i))
+        aggr |= mask;
+    fout.write((const char*)&aggr, sizeof(unsigned char));
+  }
+  fout.flush();
+  fout.close();
 }
 
 } // namespace bf

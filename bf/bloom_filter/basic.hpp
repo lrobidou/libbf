@@ -1,10 +1,9 @@
 #ifndef BF_BLOOM_FILTER_BASIC_HPP
 #define BF_BLOOM_FILTER_BASIC_HPP
 
-#include <random>
-#include <bf/bitvector.hpp>
 #include <bf/bloom_filter.hpp>
 #include <bf/hash.hpp>
+#include <random>
 
 namespace bf {
 
@@ -13,8 +12,7 @@ namespace bf {
 /// @note This Bloom filter does not use partitioning because it results in
 /// slightly worse performance because partitioned Bloom filters tend to have
 /// more 1s than non-partitioned filters.
-class basic_bloom_filter : public bloom_filter
-{
+class basic_bloom_filter : public bloom_filter {
 public:
   /// Computes the number of cells based on a false-positive rate and capacity.
   ///
@@ -63,7 +61,9 @@ public:
   ///
   /// @param hasher The hasher to use.
   /// @param bitvector the underlying bitvector of the bf.
-  basic_bloom_filter(hasher h, bitvector b);
+  basic_bloom_filter(hasher h, std::vector<bool> b);
+
+  basic_bloom_filter(hasher h, std::string filename);
 
   basic_bloom_filter(basic_bloom_filter&&);
 
@@ -72,28 +72,23 @@ public:
 
   virtual void add(object const& o) override;
   virtual size_t lookup(object const& o) const override;
-  virtual void clear() override;
-
-  /// Removes an object from the Bloom filter.
-  /// May introduce false negatives because the bitvector indices of the object
-  /// to remove may be shared with other objects.
-  ///
-  /// @param o The object to remove.
-  void remove(object const& o);
 
   /// Swaps two basic Bloom filters.
   /// @param other The other basic Bloom filter.
   void swap(basic_bloom_filter& other);
 
   /// Returns the underlying storage of the Bloom filter.
-  bitvector const& storage() const;
+  std::vector<bool> const& storage() const;
 
   /// Returns the hasher of the Bloom filter.
   hasher const& hasher_function() const;
 
+  /// Saves the Bloom filter in a file name filename.
+  void save(std::string filename);
+
 private:
   hasher hasher_;
-  bitvector bits_;
+  std::vector<bool> bits_;
   bool partition_;
 };
 
