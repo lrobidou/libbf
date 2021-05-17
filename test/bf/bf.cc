@@ -19,16 +19,8 @@ trial<nothing> run(config const& cfg) {
   auto seed = *cfg.as<size_t>("seed");
   auto fpr = *cfg.as<double>("fp-rate");
   auto capacity = *cfg.as<size_t>("capacity");
-  auto width = *cfg.as<size_t>("width");
   auto part = cfg.check("partition");
   auto double_hashing = cfg.check("double-hashing");
-  auto d = *cfg.as<size_t>("evict");
-
-  auto k2 = *cfg.as<size_t>("hash-functions-2nd");
-  auto cells2 = *cfg.as<size_t>("cells-2nd");
-  auto seed2 = *cfg.as<size_t>("seed-2nd");
-  auto width2 = *cfg.as<size_t>("width-2nd");
-  auto double_hashing2 = cfg.check("double-hashing-2nd");
 
   auto const& type = *cfg.as<std::string>("type");
   std::unique_ptr<bloom_filter> bf;
@@ -46,70 +38,6 @@ trial<nothing> run(config const& cfg) {
       assert(fpr != 0 && capacity != 0);
       bf.reset(new basic_bloom_filter(fpr, capacity, seed, part));
     }
-  } else if (type == "counting") {
-    if (cells == 0)
-      return error{"need non-zero cells"};
-    if (width == 0)
-      return error{"need non-zero cell width"};
-    if (k == 0)
-      return error{"need non-zero k"};
-
-    auto h = make_hasher(k, seed, double_hashing);
-    bf.reset(new counting_bloom_filter(std::move(h), cells, width, part));
-  } else if (type == "spectral-mi") {
-    if (cells == 0)
-      return error{"need non-zero cells"};
-    if (width == 0)
-      return error{"need non-zero cell width"};
-    if (k == 0)
-      return error{"need non-zero k"};
-
-    auto h = make_hasher(k, seed, double_hashing);
-    bf.reset(new spectral_mi_bloom_filter(std::move(h), cells, width, part));
-  } else if (type == "spectral-rm") {
-    if (cells == 0)
-      return error{"need non-zero cells"};
-    if (cells2 == 0)
-      return error{"need non-zero cells for 2nd bloom filter"};
-
-    if (width == 0)
-      return error{"need non-zero cell width"};
-    if (width2 == 0)
-      return error{"need non-zero cell width for 2nd bloom filter"};
-
-    if (k == 0)
-      return error{"need non-zero k"};
-    if (k2 == 0)
-      return error{"need non-zero k for second bloom filter"};
-
-    auto h1 = make_hasher(k, seed, double_hashing);
-    auto h2 = make_hasher(k2, seed2, double_hashing2);
-    bf.reset(new spectral_rm_bloom_filter(std::move(h1), cells, width,
-                                          std::move(h2), cells2, width2, part));
-  } else if (type == "bitwise") {
-    if (cells == 0)
-      return error{"need non-zero cells"};
-    if (k == 0)
-      return error{"need non-zero k"};
-
-    bf.reset(new bitwise_bloom_filter(k, cells, seed));
-  } else if (type == "a2") {
-    if (cells == 0)
-      return error{"need non-zero cells"};
-    if (capacity == 0)
-      return error{"need non-zero capacity"};
-    if (k == 0)
-      return error{"need non-zero k"};
-
-    bf.reset(new a2_bloom_filter(k, cells, capacity, seed, seed2));
-  } else if (type == "stable") {
-    if (cells == 0)
-      return error{"need non-zero cells"};
-    if (k == 0)
-      return error{"need non-zero k"};
-
-    auto h = make_hasher(k, seed, double_hashing);
-    bf.reset(new stable_bloom_filter(std::move(h), cells, seed, d));
   } else {
     return error{"invalid bloom filter type"};
   }
