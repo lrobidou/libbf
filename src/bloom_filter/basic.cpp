@@ -6,8 +6,20 @@
 #include <iostream>
 
 namespace hidden_bf {
-std::vector<bool> loadBoolVectorFromDisk(std::string filename) {
 
+inline bool file_exists(const std::string& name) {
+  std::ifstream f(name.c_str());
+  return f.good();
+}
+
+std::vector<bool> loadBoolVectorFromDisk(std::string filename) {
+  if (!file_exists(filename)) {
+    std::cerr << "The filename " << filename
+              << " that is supposed to be used to construct the Bloom filter "
+                 "does not exist."
+              << std::endl;
+    exit(1);
+  }
   std::ifstream fin(filename, std::ios::out | std::ofstream::binary);
 
   std::vector<bool> x;
