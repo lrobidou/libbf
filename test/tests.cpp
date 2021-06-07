@@ -43,15 +43,20 @@ TEST(bloom_filter_basic) {
   // CHECK_EQUAL(obfc.lookup("foo"), 1u);
 
   std::string filemane = "test.bin";
-  unsigned long long K = 31;
-  unsigned long long z = 3;
+  const unsigned long long K = 31;
+  const unsigned long long z = 3;
+  const bool canonical = false;
+
   unsigned long long Kinfilter;
   unsigned long long zinfilter;
-  bf.save(filemane, 31, 3);
+  bool canonicalinfilter;
+  bf.save(filemane, K, z, canonical);
   bool hasKandzvalue;
-  basic_bloom_filter loaded(make_hasher(1), filemane, hasKandzvalue, K, z);
+  basic_bloom_filter loaded(make_hasher(1), filemane, hasKandzvalue, Kinfilter,
+                            zinfilter, canonicalinfilter);
   CHECK_EQUAL(K, Kinfilter);
   CHECK_EQUAL(z, zinfilter);
+  CHECK_EQUAL(canonical, canonicalinfilter);
   CHECK_EQUAL(hasKandzvalue, true);
 
   CHECK_EQUAL(loaded.storage() == bf.storage(), true);

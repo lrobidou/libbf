@@ -2,7 +2,7 @@
 
 This repository is a modified version of libbf, which includes various filters, but do not allowed any serialization of the filters.
 
-This repository only contains a basic bloom filter, but expose a new function, 'basic_bloom_filter::save(std::string filename)', which allows you to save the filter. A new constructor, 'basic_bloom_filter::basic_bloom_filter(hasher h, std::string filename)', allows you to load the filter from your disk.
+This repository only contains a basic bloom filter, but expose a new function, 'basic_bloom_filter::save(std::string filename)', which allows you to save the filter. A new constructor, 'basic_bloom_filter::basic_bloom_filter(hasher h, std::string filename, bool& hasKzandcanonicalvalues, unsigned long long& K, unsigned long long& z, bool& canonical)', allows you to load the filter from your disk.
 
 
 [blog-post]: http://matthias.vallentin.net/blog/2011/06/a-garden-variety-of-bloom-filters/
