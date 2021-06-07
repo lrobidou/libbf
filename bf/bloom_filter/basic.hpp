@@ -63,7 +63,8 @@ public:
   /// @param bitvector the underlying bitvector of the bf.
   basic_bloom_filter(hasher h, std::vector<bool> b);
 
-  basic_bloom_filter(hasher h, std::string filename);
+  basic_bloom_filter(hasher h, std::string filename, bool& hasKandzvalue,
+                     unsigned long long& K, unsigned long long& z);
 
   basic_bloom_filter(basic_bloom_filter&&);
 
@@ -84,9 +85,11 @@ public:
   hasher const& hasher_function() const;
 
   /// Saves the Bloom filter in a file name filename.
-  void save(std::string filename);
+  void save(const std::string& filename, const unsigned long long& K,
+            const unsigned long long& z);
 
 private:
+  void writeUUID(std::ofstream& fout);
   hasher hasher_;
   std::vector<bool> bits_;
   bool partition_;
