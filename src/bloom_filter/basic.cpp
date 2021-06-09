@@ -129,9 +129,10 @@ basic_bloom_filter::basic_bloom_filter(hasher h, std::vector<bool> b)
 basic_bloom_filter::basic_bloom_filter(hasher h, std::string filename,
                                        bool& hasKzandcanonicalvalues,
                                        unsigned long long& K,
-                                       unsigned long long& z, bool& canonical)
+                                       unsigned long long& z, bool& canonical,
+                                       bool partition)
     : hasher_(std::move(h)) {
-
+  partition_ = partition;
   if (hidden_bf::getVersionOfIndex(filename) == 0) {
     bits_ = hidden_bf::loadBoolVectorFromDisk(filename);
     K = 0;

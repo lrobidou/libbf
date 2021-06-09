@@ -65,7 +65,8 @@ public:
 
   basic_bloom_filter(hasher h, std::string filename,
                      bool& hasKzandcanonicalvalues, unsigned long long& K,
-                     unsigned long long& z, bool& canonical);
+                     unsigned long long& z, bool& canonical,
+                     bool partition = false);
 
   basic_bloom_filter(basic_bloom_filter&&);
 
