@@ -5,9 +5,8 @@
 #include <memory>
 #include <unordered_map>
 
-#include "configuration.h"
-
 #include "bf/all.hpp"
+#include "configuration.h"
 
 using namespace util;
 using namespace bf;
@@ -16,11 +15,11 @@ trial<nothing> run(config const& cfg) {
   auto numeric = cfg.check("numeric");
   auto k = *cfg.as<size_t>("hash-functions");
   auto cells = *cfg.as<size_t>("cells");
-  auto seed = *cfg.as<size_t>("seed");
+  // auto seed = *cfg.as<size_t>("seed");
   auto fpr = *cfg.as<double>("fp-rate");
   auto capacity = *cfg.as<size_t>("capacity");
-  auto part = cfg.check("partition");
-  auto double_hashing = cfg.check("double-hashing");
+  // auto part = cfg.check("partition");
+  // auto double_hashing = cfg.check("double-hashing");
 
   auto const& type = *cfg.as<std::string>("type");
   std::unique_ptr<bloom_filter> bf;
@@ -32,11 +31,11 @@ trial<nothing> run(config const& cfg) {
       if (k == 0)
         return error{"need non-zero k"};
 
-      auto h = make_hasher(k, seed, double_hashing);
-      bf.reset(new basic_bloom_filter(std::move(h), cells, part));
+      // auto h = make_hasher(k);
+      bf.reset(new basic_bloom_filter(std::move(k), cells));
     } else {
       assert(fpr != 0 && capacity != 0);
-      bf.reset(new basic_bloom_filter(fpr, capacity, seed, part));
+      bf.reset(make_filter_ptr(fpr, capacity));
     }
   } else {
     return error{"invalid bloom filter type"};
@@ -76,7 +75,7 @@ trial<nothing> run(config const& cfg) {
     return error{"cannot read " + query_file};
 
   std::cout << "TN TP FP FN G C E" << std::endl;
-  while (query >> ground_truth >> element) // uniq -c
+  while (query >> ground_truth >> element)  // uniq -c
   {
     size_t count;
     if (numeric)

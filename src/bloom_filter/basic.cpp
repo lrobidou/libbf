@@ -1,5 +1,4 @@
 #include <bf/bloom_filter/basic.hpp>
-
 #include <cassert>
 #include <cmath>
 #include <fstream>
@@ -12,90 +11,53 @@ inline bool file_exists(const std::string& name) {
   return f.good();
 }
 
-int getVersionOfIndex(std::string filename) {
-  std::string uuid1 = "93d4c313-eed5-434e-bddd-34bd2ba23a12";
+std::string getUUID(std::string filename, std::size_t length) {
   std::ifstream fin(filename, std::ios::out | std::ofstream::binary);
   char ct;
-  for (char& c : uuid1) {
+  std::string uuid = "";
+  for (std::size_t i = 0; i < length; i++) {
     fin.read((char*)&ct, sizeof(unsigned char));
-    if (c != ct) {
-      return 0; // not our UUID, so the version of this index is 0
-    }
+    uuid += ct;
   }
-  return 1; // we have our UUID at the beginning of the file
+  return uuid;
 }
 
-std::vector<bool> loadBoolVectorFromDisk1(std::string filename,
-                                          unsigned long long& K,
-                                          unsigned long long& z,
-                                          bool& canonical) {
-  if (!file_exists(filename)) {
-    std::cerr << "The filename " << filename
-              << " that is supposed to be used to construct the Bloom filter "
-                 "does not exist."
-              << std::endl;
-    exit(1);
-  }
-  std::ifstream fin(filename, std::ios::out | std::ofstream::binary);
-
-  // read UUID
-  std::string uuid1 = "93d4c313-eed5-434e-bddd-34bd2ba23a12";
+void skipChar(std::ifstream& fin, std::size_t length) {
   char ct;
-  for (char& c : uuid1) {
+  std::string uuid = "";
+  for (std::size_t i = 0; i < length; i++) {
     fin.read((char*)&ct, sizeof(unsigned char));
-    if (c != ct) {
-      std::cerr << "Tried to use loadBoolVectorFromDisk1 on an index that is "
-                   "not of version 1."
-                << std::endl;
-      exit(1);
-    }
   }
-  // read K
-  fin.read(reinterpret_cast<char*>(&K), sizeof(K));
-  // read z
-  fin.read(reinterpret_cast<char*>(&z), sizeof(z));
-  // read canonical
-  fin.read(reinterpret_cast<char*>(&canonical), sizeof(canonical));
-  // read the vector
-  std::vector<bool> x;
+}
+
+std::vector<bool> loadBoolVectorFromDisk(std::ifstream& fin) {
+  std::vector<bool> v;
   std::vector<bool>::size_type n;
   fin.read((char*)&n, sizeof(std::vector<bool>::size_type));
-  x.resize(n);
+  v.resize(n);
   for (std::vector<bool>::size_type i = 0; i < n;) {
     unsigned char aggr;
     fin.read((char*)&aggr, sizeof(unsigned char));
     for (unsigned char mask = 1; mask > 0 && i < n; ++i, mask <<= 1)
-      x.at(i) = aggr & mask;
+      v.at(i) = aggr & mask;
   }
-  return x;
+  return v;
 }
 
-std::vector<bool> loadBoolVectorFromDisk(std::string filename) {
-  if (!file_exists(filename)) {
-    std::cerr << "The filename " << filename
-              << " that is supposed to be used to construct the Bloom filter "
-                 "does not exist."
-              << std::endl;
-    exit(1);
-  }
-  std::ifstream fin(filename, std::ios::out | std::ofstream::binary);
-
-  std::vector<bool> x;
-  std::vector<bool>::size_type n;
-  fin.read((char*)&n, sizeof(std::vector<bool>::size_type));
-  x.resize(n);
-  for (std::vector<bool>::size_type i = 0; i < n;) {
-    unsigned char aggr;
-    fin.read((char*)&aggr, sizeof(unsigned char));
-    for (unsigned char mask = 1; mask > 0 && i < n; ++i, mask <<= 1)
-      x.at(i) = aggr & mask;
-  }
-  return x;
-}
-
-} // namespace hidden_bf
+}  // namespace hidden_bf
 
 namespace bf {
+basic_bloom_filter make_filter(double fp, size_t capacity) {
+  size_t required_cells = basic_bloom_filter::m(fp, capacity);
+  size_t optimal_k = basic_bloom_filter::k(required_cells, capacity);
+  return basic_bloom_filter(optimal_k, required_cells);
+}
+
+basic_bloom_filter* make_filter_ptr(double fp, size_t capacity) {
+  size_t required_cells = basic_bloom_filter::m(fp, capacity);
+  size_t optimal_k = basic_bloom_filter::k(required_cells, capacity);
+  return new basic_bloom_filter(optimal_k, required_cells);
+}
 
 size_t basic_bloom_filter::m(double fp, size_t capacity) {
   auto ln2 = std::log(2);
@@ -107,46 +69,54 @@ size_t basic_bloom_filter::k(size_t cells, size_t capacity) {
   return std::ceil(frac * std::log(2));
 }
 
-basic_bloom_filter::basic_bloom_filter(hasher h, size_t cells, bool partition)
-    : hasher_(std::move(h)), bits_(cells), partition_(partition) {
+basic_bloom_filter::basic_bloom_filter(size_t numberOfHashFunctions, size_t cells, bool partition)
+    : hasher_(make_hasher(numberOfHashFunctions)), bits_(cells), partition_(partition) {
+  numberOfHashFunctions_ = numberOfHashFunctions;
 }
 
-basic_bloom_filter::basic_bloom_filter(double fp, size_t capacity, size_t seed,
-                                       bool double_hashing, bool partition)
-    : partition_(partition) {
-  auto required_cells = m(fp, capacity);
-  auto optimal_k = k(required_cells, capacity);
-  if (partition_)
-    required_cells += optimal_k - required_cells % optimal_k;
-  bits_.resize(required_cells, false);
-  hasher_ = make_hasher(optimal_k, seed, double_hashing);
-}
-
-basic_bloom_filter::basic_bloom_filter(hasher h, std::vector<bool> b)
-    : hasher_(std::move(h)), bits_(std::move(b)) {
-}
-
-basic_bloom_filter::basic_bloom_filter(hasher h, std::string filename,
+basic_bloom_filter::basic_bloom_filter(std::string filename,
                                        bool& hasKzandcanonicalvalues,
                                        unsigned long long& K,
-                                       unsigned long long& z, bool& canonical,
-                                       bool partition)
-    : hasher_(std::move(h)) {
+                                       unsigned long long& z,
+                                       bool& canonical,
+                                       bool partition) {
   partition_ = partition;
-  if (hidden_bf::getVersionOfIndex(filename) == 0) {
-    bits_ = hidden_bf::loadBoolVectorFromDisk(filename);
+
+  if (!hidden_bf::file_exists(filename)) {
+    std::cerr << "The filename "
+              << filename
+              << " that is supposed to be used to construct the Bloom filter"
+              << " does not exist."
+              << std::endl;
+    exit(1);
+  }
+
+  std::size_t sizeOfUuid = uuid_2_0_0.length();
+  std::string uuid = hidden_bf::getUUID(filename, sizeOfUuid);
+  std::ifstream fin(filename, std::ios::out | std::ofstream::binary);
+  if (uuid == uuid_3_0_0) {
+    hidden_bf::skipChar(fin, sizeOfUuid);                                                        // skip first char
+    fin.read(reinterpret_cast<char*>(&K), sizeof(K));                                            // read K
+    fin.read(reinterpret_cast<char*>(&z), sizeof(z));                                            // read z
+    fin.read(reinterpret_cast<char*>(&canonical), sizeof(canonical));                            // read canonical
+    fin.read(reinterpret_cast<char*>(&numberOfHashFunctions_), sizeof(numberOfHashFunctions_));  // read canonical
+    bits_ = hidden_bf::loadBoolVectorFromDisk(fin);
+  } else if (uuid == uuid_2_0_0) {
+    hidden_bf::skipChar(fin, sizeOfUuid);
+    fin.read(reinterpret_cast<char*>(&K), sizeof(K));                  // read K
+    fin.read(reinterpret_cast<char*>(&z), sizeof(z));                  // read z
+    fin.read(reinterpret_cast<char*>(&canonical), sizeof(canonical));  // read canonical
+    numberOfHashFunctions_ = 1;
+    bits_ = hidden_bf::loadBoolVectorFromDisk(fin);
+  } else {
+    hasKzandcanonicalvalues = false;
     K = 0;
     z = 0;
     canonical = false;
-    hasKzandcanonicalvalues = false;
-  } else {
-    hasKzandcanonicalvalues = true;
-    bits_ = hidden_bf::loadBoolVectorFromDisk1(filename, K, z, canonical);
+    numberOfHashFunctions_ = 1;
+    bits_ = hidden_bf::loadBoolVectorFromDisk(fin);
   }
-}
-
-basic_bloom_filter::basic_bloom_filter(basic_bloom_filter&& other)
-    : hasher_(std::move(other.hasher_)), bits_(std::move(other.bits_)) {
+  hasher_ = make_hasher(numberOfHashFunctions_);
 }
 
 void basic_bloom_filter::add(object const& o) {
@@ -197,22 +167,27 @@ hasher const& basic_bloom_filter::hasher_function() const {
   return hasher_;
 }
 
+size_t basic_bloom_filter::getNumberOfHashFunctions() const {
+  return numberOfHashFunctions_;
+}
+
 void basic_bloom_filter::save(const std::string& filename,
                               const unsigned long long& K,
                               const unsigned long long& z,
                               const bool& canonical) {
   std::ofstream fout(filename, std::ios::out | std::ofstream::binary);
   // write the UUID
-  std::string myuuid = "93d4c313-eed5-434e-bddd-34bd2ba23a12";
-  for (char& c : myuuid) {
+  for (char& c : uuid_3_0_0) {
     fout.write((const char*)&c, sizeof(unsigned char));
   }
   // write k
-  fout.write(reinterpret_cast<const char*>(&K), sizeof(unsigned long long));
+  fout.write(reinterpret_cast<const char*>(&K), sizeof(K));
   // write z
-  fout.write(reinterpret_cast<const char*>(&z), sizeof(unsigned long long));
+  fout.write(reinterpret_cast<const char*>(&z), sizeof(z));
   // write canonical
-  fout.write(reinterpret_cast<const char*>(&canonical), sizeof(bool));
+  fout.write(reinterpret_cast<const char*>(&canonical), sizeof(canonical));
+  // TODO write the number of hash function
+  fout.write(reinterpret_cast<const char*>(&numberOfHashFunctions_), sizeof(numberOfHashFunctions_));
   // write the vector
   std::vector<bool>::size_type n = bits_.size();
   fout.write((const char*)&n, sizeof(std::vector<bool>::size_type));
@@ -226,5 +201,4 @@ void basic_bloom_filter::save(const std::string& filename,
   fout.flush();
   fout.close();
 }
-
-} // namespace bf
+}  // namespace bf
