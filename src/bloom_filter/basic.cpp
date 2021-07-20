@@ -201,4 +201,17 @@ void basic_bloom_filter::save(const std::string& filename,
     fout.flush();
     fout.close();
 }
+
+void basic_bloom_filter::simpleSave(std::ofstream& fout) {
+    std::vector<bool>::size_type n = bits_.size();
+    fout.write((const char*)&n, sizeof(std::vector<bool>::size_type));
+    for (std::vector<bool>::size_type i = 0; i < n;) {
+        unsigned char aggr = 0;
+        for (unsigned char mask = 1; mask > 0 && i < n; ++i, mask <<= 1)
+            if (bits_.at(i))
+                aggr |= mask;
+        fout.write((const char*)&aggr, sizeof(unsigned char));
+    }
+    fout.flush();
+}
 }  // namespace bf

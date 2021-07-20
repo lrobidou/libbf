@@ -50,6 +50,13 @@ class basic_bloom_filter : public bloom_filter {
     void save(const std::string& filename, const unsigned long long& K,
               const unsigned long long& z, const bool& canonical);
 
+    /**
+     * @brief Saves the filter to a file. Assume the file is open. Does not close it (but flush it). Do not wite any UUID (just write the size of the filter and the filter itself).
+     * @param fout the file to save the filter to.
+     * @return (void)
+     */
+    void simpleSave(std::ofstream& fout);
+
    private:
     void writeUUID(std::ofstream& fout);
     hasher hasher_;
